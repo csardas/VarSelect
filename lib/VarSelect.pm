@@ -5,16 +5,16 @@ use Exporter () ;
 use vars qw($Setting) ;
 
 $Setting = {
-     dir_vep_cache  => "/peterhouse/tools/bcbio/genomes/Hsapiens/GRCh37/vep" ,
-     dir_vep	    => "/peterhouse/tools/bcbio/anaconda/bin" ,       
-     vep	    => "variant_effect_predictor.pl" ,
-     file_ref	    => "/peterhouse/tools/bcbio/genomes/Hsapiens/GRCh37/seq/GRCh37.fa" ,
-     file_dbNSFP    => "/peterhouse/lchen/csardas/varselect/db/dbNSFP_3.2a.txt.gz" ,
-     jar_snpeff	    => "/peterhouse/tools/bcbio/anaconda/share/snpeff-4.3-3/snpEff.jar" ,
-     dir_snpeff	    => "/peterhouse/tools/bcbio/genomes/Hsapiens/GRCh37/snpeff" ,
-     genome_snpeff  => "GRCh37.75" ,
-     dir_annovar    => "/peterhouse/tools/annovar/" ,
-     genome_annovar => "hg19" ,
+     dir_vep_cache  => "" ,
+     dir_vep	    => "" ,
+     vep	    => "" ,
+     file_ref	    => "" ,
+     file_dbNSFP    => "" ,
+     jar_snpeff	    => "" ,
+     dir_snpeff	    => "" ,
+     genome_snpeff  => "" ,
+     dir_annovar    => "" ,
+     genome_annovar => "" ,
 } ;
 
 sub getts {
