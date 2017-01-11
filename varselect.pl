@@ -45,6 +45,7 @@ if ($command eq 'annotate') {
     my $threads_enable	    = $opts->{n} || $DEFAULT_threads ;
     my $file_cnv	    = $opts->{c} ;
     my $file_xpr	    = $opts->{x} ;
+#    my $freq_vgt_filter	    = $opts->{f} || 1 ;
 
     my $flag_combine_union  = $opts->{u} ;
     my $flag_combine_intersect = $opts->{i} ;
@@ -56,7 +57,7 @@ if ($command eq 'annotate') {
 	$type_combine = "intersection" ;
     }
 
-    die "Only [ " . join ("," sort keys %$workflow_avail) . " ] are available for option -m \n" unless (exists $workflow_avail->{$mode_workflows}) ;
+    die "Only [ " . join (",", sort keys %$workflow_avail) . " ] are available for option -m \n" unless (exists $workflow_avail->{$mode_workflows}) ;
 
     # Output setting
     my $dir_results_output = "./VarSelectAnalysisResult_$jobid" ;
@@ -76,6 +77,9 @@ if ($command eq 'annotate') {
 
     my ($fname_vfile,$fpath_vfile,$fext_vfile) = fileparse($file_vcflist , qw/.txt/) ;
     my $file_db = "./$fname_vfile\_varselect.db" ;
+
+
+    print "VarSelect Job id: $jobid\n" ;
 
     # Step 1. Annotate from vcf
     my $cmd_vs_annotate = "$script_vsannotate " ;
@@ -98,6 +102,7 @@ if ($command eq 'annotate') {
     $cmd_vs_analysis .= " -d $file_db " ;
     $cmd_vs_analysis .= " -p $file_ped " ;
     $cmd_vs_analysis .= " -m $mode_workflows " ;
+#    $cmd_vs_analysis .= " -f $freq_vgt_filter " ;
     $cmd_vs_analysis .= " -k " if ($flag_multicallers) ;
     $cmd_vs_analysis .= " -i " if ($flag_combine_intersect) ;
     $cmd_vs_analysis .= " -u " if ($flag_combine_union) ;
@@ -111,7 +116,7 @@ if ($command eq 'annotate') {
 
 } elsif ($command eq 'analysis') {
     # Options for analysis
-    getopts("d:p:m:hkuic:x:n:",$opts) ;
+    getopts("d:p:m:hkuic:x:n:f:",$opts) ;
 
     die usage_analysis() if $opts->{h} ;
 
@@ -123,6 +128,7 @@ if ($command eq 'annotate') {
     my $threads_enable	    = $opts->{n} || $DEFAULT_threads ;
     my $file_cnv	    = $opts->{c} ;
     my $file_xpr	    = $opts->{x} ;
+    my $freq_vgt_filter	    = $opts->{f} || 1;
 
     my $flag_combine_union  = $opts->{u} ;
     my $flag_combine_intersect = $opts->{i} ;
@@ -137,8 +143,9 @@ if ($command eq 'annotate') {
     die "\ndb $file_db doesn't exist!\n" unless (-e $file_db) ;
     die "\ndb $file_db is not writable!\n" unless (-w $file_db) ;
 
-    die "Only [ " . join ("," sort keys %$workflow_avail) . " ] are available for option -m \n" unless (exists $workflow_avail->{$mode_workflows}) ;
+    die "Only [ " . join ("," , sort keys %$workflow_avail) . " ] are available for option -m \n" unless (exists $workflow_avail->{$mode_workflows}) ;
 
+    print "VarSelect Job id: $jobid\n" ;
 
     # Output setting, create output directory
     my $dir_results_output = "./VarSelectAnalysisResult_$jobid" ;
@@ -148,6 +155,8 @@ if ($command eq 'annotate') {
     die "Current directory is not writable! Please check your permission!\n" unless (-w "./" ) ;
     make_path($dir_results_output , { chmod => 0755 ,} ) unless (-e $dir_results_output) ;
     make_path($dir_log , $dir_work ,{ chmod => 0755 ,} )  ;
+
+    print "$dir_results_output is created.\n" ;
 
     my $file_stderr = "$dir_log/stderr.vs_analysis.$jobid.log" ;
 
@@ -163,6 +172,7 @@ if ($command eq 'annotate') {
     $cmd_vs_analysis .= " -d $file_db " ;
     $cmd_vs_analysis .= " -p $file_ped " ;
     $cmd_vs_analysis .= " -m $mode_workflows " ;
+#    $cmd_vs_analysis .= " -f $freq_vgt_filter " ;
     $cmd_vs_analysis .= " -k " if ($flag_multicallers) ;
     $cmd_vs_analysis .= " -i " if ($flag_combine_intersect) ;
     $cmd_vs_analysis .= " -u " if ($flag_combine_union) ;
@@ -173,6 +183,9 @@ if ($command eq 'annotate') {
     $log->andRun($cmd_vs_analysis) ;
     $log->loadlog("$dir_log/log_vsanalysis_$jobid.log") ;
     $log->write("VS_analysis finish") ;
+
+    print "VarSelect $jobid done.\n" ;
+    print localtime() ."\n" ;
 
 } elsif ($command eq 'compare') {
     getopts("a:b:c:h",$opts) ;
@@ -288,8 +301,8 @@ sub usage_compare {
     return <<EOusage3
 $0 compare 
 
-    -a Path/to/datasetA
-    -b Path/to/datasetB
+    -a Path/to/result/of/datasetA
+    -b Path/to/result/of/datasetB
 
     -c compare mode [1-4]
        1: A or B

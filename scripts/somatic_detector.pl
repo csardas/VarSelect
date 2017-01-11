@@ -18,13 +18,14 @@ my $dir_workflows = "$dir_vsHOME/workflows" ;
 
 # Options handle
 my $opts = {} ;
-getopts("i:o:p:j:d:n:", $opts) ;
+getopts("i:o:p:j:d:n:v:", $opts) ;
 
 my $jobid		  = $opts->{j} || getts() ;
 my $file_db		  = $opts->{d} ;
 my $file_ped		  = $opts->{p} || die "\nError: -p PED file is required!\n\n" ;
 my $file_vcf_input	  = $opts->{i} || die "\nError: -i VCF file is required!\n\n" ;
 my $file_output_isSomatic = $opts->{o} ;
+my $file_vcfgz_isSomatic  = $opts->{v} ;
 my $threads_enable	  = $opts->{n} ;
 
 my ($input_name,$input_path,$input_ext) = fileparse($file_vcf_input, qw/.vcf .vcf.gz/) ;
@@ -38,8 +39,6 @@ my $dir_work = "$dir_results_output/work_$jobid" ;
 die "Current directory is not writable! Please check your permission!\n" unless (-w "./" ) ;
 make_path($dir_results_output , { chmod => 0755 ,} ) unless (-e $dir_results_output) ;
 make_path($dir_log , $dir_work ,{ chmod => 0755 ,} ) unless (-e $dir_work && -e $dir_log) ;
-
-my $file_vcfgz_isSomatic = "$dir_results_output/$input_name\_somatic\_$jobid.vcf.gz" ;
 
 # start logging
 my $file_log = "$dir_log/log_somaticdetect_$jobid.log" ;
@@ -98,7 +97,7 @@ while (my $var = $vcf_parser->next_var) {
     }
 
     print $TGT_rst join("\t" , map {$var->{$_} } qw/CHROM POS REF ALT/ ) ;
-    print $TGT_rst "\t$is_Somatic\t$somatic_gt" ;
+    print $TGT_rst "\t$is_Somatic\t$somatic_gt\t$is_Somatic" ;
 
     foreach my $sample (@{$var->{samples}}) {
         print $TGT_rst "\t$sample:" . $var->{sample_val}->{$sample}->{GT} ;
@@ -111,27 +110,15 @@ tabix_vcf($file_output_isSomatic) ;
 
 # Step 5. vcf-annotate 
 my $cmd_vannot = "zcat $file_vcf_input | vcf-annotate -a $file_output_isSomatic.gz " ;
-$cmd_vannot .= " -c " . join("," , qw"CHROM POS REF ALT INFO/is_Somatic INFO/Somatic_gt" ) ;
+$cmd_vannot .= " -c " . join("," , qw"CHROM POS REF ALT INFO/is_Somatic INFO/Somatic_gt INFO/in_analysis" ) ;
 $cmd_vannot .= " -d key=INFO,ID=is_Somatic,Number=1,Type=Integer,Description='is_Somatic annotation by Varselect' " ;
+$cmd_vannot .= " -d key=INFO,ID=in_analysis,Number=1,Type=Integer,Description='in_analysis annotation by Varselect' " ;
 $cmd_vannot .= " -d key=INFO,ID=Somatic_gt,Number=.,Type=String,Description='Somatic_gt annotation by Varselect' " ;
 $cmd_vannot .= " 2> $dir_log/stderr_vannot_somatic_$jobid.log " ;
 $cmd_vannot .= " | bgzip -@ $threads_enable -c > $file_vcfgz_isSomatic " ;
 
 $log->andRun($cmd_vannot) ;
 tabix_vcf($file_vcfgz_isSomatic) ;
-
-# Step 6. gemini annotate
-my $cmd_gannot = "gemini annotate -f $file_vcfgz_isSomatic " ;
-$cmd_gannot .= " -a extract " ;
-$cmd_gannot .= " -e is_Somatic,Somatic_gt " ;
-$cmd_gannot .= " -t integer,text " ;
-$cmd_gannot .= " -c is_Somatic_$jobid,Somatic_gt_$jobid" ;
-$cmd_gannot .= " -o first,first " ;
-$cmd_gannot .= " $file_db 2> $dir_log/stderr_gannot_somatic_$jobid.log" ;
-$log->andRun($cmd_gannot) ;
-
-$log->write("Somatic detecting finish") ;
-
 
 sub gtchk0 {
     my $gt = shift ;

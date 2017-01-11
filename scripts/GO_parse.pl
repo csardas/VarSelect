@@ -48,6 +48,7 @@ print $TGT_header "##INFO=<ID=GO_Molecular_Function,Number=.,Type=String,Descrip
 close $TGT_header ;
 
 $log->write("Loading mapping of Ensembl transcript to database $file_hashref_enst2go start") ;
+print "$file_hashref_enst2go\n" ;
 my $enst2go = retrieve($file_hashref_enst2go) ;
 $log->write("Loading mapping of Ensembl transcript to database $file_hashref_enst2go finish") ;
 
@@ -112,7 +113,7 @@ $cmd_gannot .= " -t text,text,text " ;
 $cmd_gannot .= " -o first,first,first " ;
 $cmd_gannot .= " 2> $dir_log/stderr_gannot_go_$jobid.log $file_geminidb " ;
 
-$log->andRun($cmd_gannot) ;
+#$log->andRun($cmd_gannot) ;
 
 
 $log->write("GO parsing finish") ;

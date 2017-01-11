@@ -9,28 +9,40 @@ use lib dirname(dirname( abs_path($0) )) . '/lib';
 use VarSelect ;
 use VarSelect::Log ;
 
+my $dir_script = dirname(abs_path $0) ;
+my $dir_vsHOME = dirname($dir_script) ;
+my $dir_db = "$dir_vsHOME/db" ;
+my $dir_lib = "$dir_vsHOME/lib" ;
+my $dir_workflows = "$dir_vsHOME/workflows" ;
+
 my $ts = getts() ;
 my $DEFAULT_build = $Setting->{genome_annovar} ;
 my $dir_annovar = $Setting->{dir_annovar} ;
 my $exe_annovar = "$dir_annovar/table_annovar.pl" ;
 my $file_humandb_annovar = "$dir_annovar/humandb" ;
-my $file_prefix = "./runannovar_$ts" ;
 
 
 # Options handling
 my $opts = {} ;
-getopts("i:o:l:", $opts) ;
+getopts("i:o:l:j:", $opts) ;
 
+my $jobid = $opts->{j} ;
 my $file_input = $opts->{i} ;
 my $file_output = $opts->{o} ;
-my $dir_log = $opts->{l} ;
-my $file_log = "$dir_log/running_annovar.log" ;
 
-open (my $LOG, ">$file_log") ;
+my $dir_results_output = "./VarSelectAnalysisResult_$jobid" ;
+my $dir_log = "$dir_results_output/log_$jobid" ;
+my $dir_work = "$dir_results_output/work_$jobid" ;
+my $file_config = "$dir_results_output/varselect.config" ;
+my $file_log = "$dir_log/running_annovar_$jobid.log" ;
 
-tlog ("Annovar start") ;
+my $file_prefix = "$dir_results_output/runannovar_$ts" ;
+
+my $log = VarSelect::Log->new(file => $file_log) ;
+
+$log->write ("Running ANNOVAR start") ;
 my $file_input_annovar = $file_input ;
-my $file_vcf_annovar = "$file_prefix.hg19_multianno.vcf" ;
+my $file_vcf_annovar = "$file_prefix.$DEFAULT_build\_multianno.vcf" ;
 
 my $protocal_enable = {
     avsift => 'f' ,
@@ -74,40 +86,20 @@ my $cmd_annovar = "$exe_annovar $file_input_annovar $file_humandb_annovar " ;
 $cmd_annovar .= " -buildver $DEFAULT_build " ;
 $cmd_annovar .= " -out $file_prefix " ;
 $cmd_annovar .= " -remove " ;
-$cmd_annovar .= " -protocol " . join ("," , @$list_protocols ) ;
+$cmd_annovar .= " -protocol " . join ("," , map {"'" . $_ . "'" } @$list_protocols ) ;
 $cmd_annovar .= " -operation " . join("," , @$list_operation ) ;
 # $cmd_annovar .= " -nastring . " ;
 $cmd_annovar .= " -vcfinput " ;
 $cmd_annovar .= " 2> $dir_log/stderr.annovar.$ts.log" ;
 
-tlog ("$cmd_annovar") ;
+$log->write ("$cmd_annovar") ;
 `$cmd_annovar` ;
-tlog ("Annovar finished") ;
-
+$log->write ("Running ANNOVAR finished") ;
 
 my $cmd_bgzip_output = "bgzip -c $file_prefix.$DEFAULT_build\_multianno.vcf > $file_output" ;
-tlog("$cmd_bgzip_output") ;
+$log->write("$cmd_bgzip_output") ;
 `$cmd_bgzip_output` ;
 
 
-
-sub timelog {
-    my $text = shift ;
-    my $time = localtime(time) ;
-
-    return "$time\t$text" ;
-}
-
-sub logit {
-    my $msg = shift ;
-    my $fh = shift ;
-
-    print $fh "$msg\n" ;
-}
-
-sub tlog {  # timelog + logit
-    my $msg = shift ;
-    logit(timelog("$msg"),$LOG) ;
-}
 
 

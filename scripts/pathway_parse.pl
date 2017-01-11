@@ -125,7 +125,7 @@ $cmd_gannot .= " -e pathway " ;
 $cmd_gannot .= " -t text " ;
 $cmd_gannot .= " -o first " ;
 $cmd_gannot .= " 2>$dir_log/stderr_gannot_pathway_$jobid.log  $file_geminidb " ;
-$log->andRun($cmd_gannot) ;
+#$log->andRun($cmd_gannot) ;
 
 
 sub bgzip {

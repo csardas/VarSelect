@@ -1,5 +1,19 @@
 #!/usr/bin/python
 
+"""
+    gender: True -> Male
+            False -> Female
+
+    is_F: Father is affected
+    is_M: Mother is affected
+
+    PAR region: p1 ~ p2, p3 ~ p4
+        p1: 60001
+        p2: 2699520
+        p3: 154931044
+        p4: 155270560
+"""
+
 import os, sys, getopt, subprocess
 
 def main(argv):
@@ -41,8 +55,8 @@ def main(argv):
         if tmp[3] != '0':
             if tmp[3] not in parents:
                 parents.append(tmp[3])
-    f.close()
-
+    # Re-read file
+    f.seek(0)
     # get fist affected sample
     f = open(pedfile, 'r')
     gender = False
@@ -58,8 +72,25 @@ def main(argv):
             if tmp[4] == '1':
                 gender = True
             break # only take one affected child
+    # Re-read file
+    f.seek(0)
+    # check if father or mother affected
+    is_F = False # not used
+    is_M = False # not used
+    for line in f:
+        if line.startswith('#'):
+            continue
+
+        tmp = line.strip().split('\t')
+        if tmp[1] == f_:
+            if tmp[5] == '2':
+                is_F = True
+        elif tmp[1] == m_:
+            if tmp[5] == '2':
+                is_M = True
     f.close()
 
+    # make vlist from VCF
     f2 = open(vcffile, 'r')
 
     tmp = []
@@ -78,10 +109,9 @@ def main(argv):
     vlist = [x.strip().split('\t') for x in tmp]
 
     # store gene to list from gemini db
-    output = subprocess.Popen(['gemini', 'query', '-q', 'SELECT gene FROM variants', dbfile], stdout=subprocess.PIPE).communicate()[0].strip()
+    output = subprocess.Popen(['gemini', 'query', '-q', 'SELECT gene FROM variants', dbfile], stdout=subprocess.PIPE).communicate()[0]
     gene_list = output.split('\n')
 
-    gene_dic = {}
     def is_HET(genotype):
         tmp = genotype.split('/')
         if len(tmp) != 2:
@@ -90,17 +120,17 @@ def main(argv):
         g1 = tmp[0]
         g2 = tmp[1]
 
-        if g1 == '.':
-            g1 = '0'
-        if g2 == '.':
-            g2 = '0'
-
         if (g1 =='0' and g2 != '0') or (g2 == '0' and g1 != '0'):
             return True
         else:
             return False
 
 
+    gene_dic = {}
+    p1 = 60001
+    p2 = 2699520
+    p3 = 154931044
+    p4 = 155270560
     for i in range(len(vlist)):
         gene = gene_list[i]
 
@@ -132,7 +162,7 @@ def main(argv):
             vlist[i].append('0')
             continue
 
-        if (vlist[i][0] == 'X' and ((int(vlist[i][1]) < 60001) or (2699520 <= int(vlist[i][1]) <= 154931044) or (int(vlist[i][1]) > 155270560))):
+        if (vlist[i][0] == 'X' and ((int(vlist[i][1]) < p1) or (p2 <= int(vlist[i][1]) <= p3) or (int(vlist[i][1]) > p4))):
             vlist[i].append('0')
             continue
 

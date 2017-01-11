@@ -155,15 +155,15 @@ my $cmd_tabix_new_vcf = "tabix -p vcf $file_output_vcf" ;
 $log->andRun($cmd_tabix_new_vcf) ;
 
 # Step 6. gemini annotate
-my $cmd_gannotate_LOH = "gemini annotate -f $file_output_vcf " ;
-$cmd_gannotate_LOH .= " -a extract " ;
-$cmd_gannotate_LOH .= " -e is_LOH " ;
-$cmd_gannotate_LOH .= " -t integer " ;
-$cmd_gannotate_LOH .= " -c is_LOH_$jobid " ;
-$cmd_gannotate_LOH .= " -o first " ;
-$cmd_gannotate_LOH .= " $file_db 2> $dir_log/stderr.geminiannotate_loh.$jobid.log" ;
+#my $cmd_gannotate_LOH = "gemini annotate -f $file_output_vcf " ;
+#$cmd_gannotate_LOH .= " -a extract " ;
+#$cmd_gannotate_LOH .= " -e is_LOH " ;
+#$cmd_gannotate_LOH .= " -t integer " ;
+#$cmd_gannotate_LOH .= " -c is_LOH_$jobid " ;
+#$cmd_gannotate_LOH .= " -o first " ;
+#$cmd_gannotate_LOH .= " $file_db 2> $dir_log/stderr.geminiannotate_loh.$jobid.log" ;
 
-$log->andRun($cmd_gannotate_LOH) ;
+#$log->andRun($cmd_gannotate_LOH) ;
 
 $log->write("LOH detecting finish") ;
 

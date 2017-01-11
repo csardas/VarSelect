@@ -154,16 +154,6 @@ $log->andRun($cmd_vannot2) ;
 
 tabix_vcf($file_vcfgz_output) ;
 
-# step 4. do gemini annotate
-my $cmd_gannot = "gemini annotate -f $file_vcfgz_output " ;
-$cmd_gannot .= " -a extract " ;
-$cmd_gannot .= " -e cnv_samples,cnv_log2,cnv_fc_samples,cnv_foldchange_log2" ;
-$cmd_gannot .= " -t text,text,text,text" ;
-$cmd_gannot .= " -c cnv_samples,cnv_log2,cnv_fc_samples_$jobid,cnv_fc_log2_$jobid" ;
-$cmd_gannot .= " -o first,first,first,first" ;
-$cmd_gannot .= " $file_db 2> $dir_log/stderr.gannot_cnv.$jobid.log" ;
-$log->andRun($cmd_gannot) ;
-
 $log->write("CNVkit parser finish") ;
 
 sub usage {

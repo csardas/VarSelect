@@ -7,13 +7,16 @@ use Cwd  qw(abs_path);
 use lib dirname(dirname( abs_path($0) )) . '/lib';
 use VarSelect ;
 use VarSelect::Log ;
+use VarSelect::Vcf_parser ;
 
+# default global setting
 my $dir_script = dirname(abs_path $0) ;
 my $dir_vsHOME = dirname($dir_script) ;
 my $dir_db = "$dir_vsHOME/db" ;
 my $dir_lib = "$dir_vsHOME/lib" ;
 my $dir_workflows = "$dir_vsHOME/workflows" ;
 
+# options handle
 my $opts = {} ;
 getopts("v:p:j:n:kd:",$opts) ;
 
@@ -25,6 +28,7 @@ my $file_db		= $opts->{d} ;
 my $threads_enable      = $opts->{n} ;
 my $threads_active = $threads_enable ;
 
+# jobs specific path
 my $dir_results_output = "./VarSelectAnalysisResult_$jobid" ;
 my $dir_log = "$dir_results_output/log_$jobid" ;
 my $dir_work = "$dir_results_output/work_$jobid" ;
@@ -39,6 +43,8 @@ $log->write(join (" " , map {"-$_ $opts->{$_}"} keys %$opts ) ) ;
 open (my $CONFIG , ">$file_config") ;
 print $CONFIG "ID\t$jobid\n" ;
 
+my $file_hashref_vannot_tmp = "$dir_work/vannot_tmp.hashref" ;
+
 my ($fname_db,$fpath_db,$fext_db) = fileparse($file_db,qw/.db/) ;
 my $file_geminidb = $file_db ;
 my $file_db_prefix = "$fpath_db/$fname_db" ;
@@ -46,10 +52,7 @@ my $file_vcfgz_foranalysis = "$file_db_prefix.vcf.gz" ;
 my $file_config_db = "$file_db_prefix.config" ;
 
 my $file_prefix = "$dir_results_output/$fname_db" ;
-
 my ($file_prefix0 , $file_path , $file_ext) = fileparse($file_vcf_list , qw/.txt .csv/) ;
-my $file_db_prefix = "$file_path/$file_prefix0" ;
-my $file_config_db = "$file_db_prefix.config" ;
 
 # PreProcess 01: Load vcf files of samples and get sample/caller list
 #=======================================
@@ -83,19 +86,9 @@ while (my $line = <$SRC_filelist>) {
 
     # make sure every input vcf is bgziped and tabixed
     my $file_vcfbgz_input = "$dir_work/$filevcf_fn.vcf.gz" ;
-    if ($file_vcf =~ /gz$/) {
-	my $cmd_force_bgzipped_input_vcf = "zcat $file_vcf |bgzip -@ $threads_enable -c > $file_vcfbgz_input " ;
-	$log->andRun($cmd_force_bgzipped_input_vcf) ;
-	tabix_vcf($file_vcfbgz_input) ;
-
-    } elsif ($file_vcf =~ /vcf$/) {
-	my $cmd_force_bgzipped_input_vcf = "cat $file_vcf |bgzip -@ $threads_enable -c > $file_vcfbgz_input " ;
-	$log->andRun($cmd_force_bgzipped_input_vcf) ;
-	tabix_vcf($file_vcfbgz_input) ;
-
-    } else {
-	die "Only support foramat .vcf.gz or .vcf of variants file.\n" ;
-    }
+    my $cmd_force_bgzipped_input_vcf = "$dir_script/drop_multiline.pl -j $jobid -i $file_vcf |bgzip -@ $threads_enable -c > $file_vcfbgz_input " ;
+    $log->andRun($cmd_force_bgzipped_input_vcf) ;
+    tabix_vcf($file_vcfbgz_input) ;
 
     tabix_vcf($file_vcfbgz_input) ;
 
@@ -104,8 +97,8 @@ while (my $line = <$SRC_filelist>) {
 close $SRC_filelist ;
 $log->write ("Load and check VCF file list finish") ;
 
-print $CONFIG "multicaller\t$flag_multicallers" ;
-print $CONFIG "caller_list\t" .join("," , sort keys %$caller_list) . "\n" ;
+print $CONFIG "multicaller\t$flag_multicallers\n" ;
+print $CONFIG "caller_list\t" . join("," , sort keys %$caller_list) . "\n" if ($flag_multicallers) ;
 print $CONFIG "sample_list\t" . join("," , sort keys %$sample_list) . "\n" ;
 
 # PreProcess 02: Load PED file, output Sample sex, and  get sample list
@@ -245,6 +238,7 @@ if (exists $sample2file->{all} ) {
     my $log_stderr_vcf_merge = "$dir_log/stderr_vcfmerge.log" ;
 
     my $cmd_merge = "vcf-merge -R '0/0' " . join (" ", @$files_to_process) . " 2> $log_stderr_vcf_merge |bgzip -@ $threads_active -c > $file_merged_vcfgz" ;
+#    my $cmd_merge = "bcftools merge " . join (" ", @$files_to_process) . " 2> $log_stderr_vcf_merge |bgzip -@ $threads_active -c > $file_merged_vcfgz" ;
     $log->andRun($cmd_merge) ;
     $log->write ("Merge vcf files from different samples finish.") ;
 
@@ -253,7 +247,7 @@ if (exists $sample2file->{all} ) {
     my $file_vcf_cleanXY = $file_prefix . "_cleanXY.vcf" ;
     my $file_vcfgz_cleanXY = $file_prefix . "_cleanXY.vcf.gz" ;
     my $log_stderr_fixploidy = "$dir_log/stderr_fixploidy.log" ;
-    $log->write ("Fixing ploid of sex chromosome start") ;
+    $log->write ("Fixing ploidy of sex chromosome start") ;
 
     my $cmd_fix_ploidy = "zcat $file_merged_vcfgz |vcf-fix-ploidy --samples $file_sample_sex >$file_vcf_cleanXY 2> $log_stderr_fixploidy" ;
     $log->andRun($cmd_fix_ploidy) ;
@@ -263,7 +257,7 @@ if (exists $sample2file->{all} ) {
 
     tabix_vcf($file_vcfgz_cleanXY) ;
 
-    $log->write ("Fixing ploid of sex chromosome finish") ;
+    $log->write ("Fixing ploidy of sex chromosome finish") ;
 
 	   
     # InitAnnot 05: VEP 
@@ -313,29 +307,30 @@ if (exists $sample2file->{all} ) {
     my $file_log_snpeff = "$dir_log/running_snpeff.$jobid.log" ;
 
     $log->write("Run snpEff start") ;
-    my $cmd_run_snpeff = "$script_run_snpeff -i $file_vcfgz_cleanXY -o $file_vcfgz_snpeff -j $jobid -n $threads_active -l $dir_log -d $file_geminidb" ;
+    my $cmd_run_snpeff = "$script_run_snpeff -i $file_vcfgz_cleanXY -o $file_vcfgz_snpeff -j $jobid -n $threads_active -d $file_geminidb" ;
     $log->andRun($cmd_run_snpeff) ;
     $log->write("Run snpEff finish") ;
 
-    # Annovar
+    # ANNOVAR
     #=======================================
-    $log->write("Running Annovar start") ;
+    $log->write("Running ANNOVAR start") ;
     my $file_vcfgz_annovar = "$file_prefix\_annovar.vcf.gz" ;
     my $file_log_running_annovar = "$dir_log/running_annovar.log" ;
     my $cmd_runannovar = "$dir_script/run_annovar.pl" ;
-    $cmd_runannovar .= " -i $file_vcfgz_cleanXY " ;
+#    $cmd_runannovar .= " -i $file_vcfgz_cleanXY " ;
+    $cmd_runannovar .= " -i $file_vcfgz_snpeff " ;
     $cmd_runannovar .= " -o $file_vcfgz_annovar " ;
-    $cmd_runannovar .= " -l $dir_log " ;
+    $cmd_runannovar .= " -j $jobid " ;
 
     $log->write($cmd_runannovar) ;
     `$cmd_runannovar` ;
 
     tabix_vcf($file_vcfgz_annovar) ;
-    $log->write("Running Annovar finish") ;
+    $log->write("Running ANNOVAR finish") ;
 
-    # Annotate Annovar
+    # Annotate ANNOVAR
     #=======================================
-    $log->write("Extract info fields from annovar vcf start") ;
+    $log->write("Extract info fields from ANNOVAR vcf start") ;
     my $annovar_header_parser = Vcf_parser->new (file => $file_vcfgz_annovar) ;
 
     my $list_extract = [] ;
@@ -343,29 +338,41 @@ if (exists $sample2file->{all} ) {
     my $list_column = [] ;
     my $list_operation = [] ;
 
+    my $gannot_list = retrieve $file_hashref_vannot_tmp ;
+
     foreach my $info_tag (sort keys %{$annovar_header_parser->{header}->{INFO}} ) {
         next if ($info_tag eq 'lines') ;  # dirty hack for Vcf_parser bug
 
         my $desc = $annovar_header_parser->{header}->{INFO}->{$info_tag}->{Description} ;
 
         if ($desc =~ /provided by ANNOVAR/) {
-            push @$list_extract , $info_tag ;
-            push @$list_type , 'text' ;
-            push @$list_column , "anv_$info_tag" ;
-            push @$list_operation , 'list' ;
+	    my $col_tag = $info_tag ;
+	    $col_tag =~ s/\-/\_/g ;
+	    $col_tag =~ s/\+/x/g ;
+
+	    next if ($info_tag eq 'esp6500siv2_all') ; # dirty hack for duplicate INFO tag, there is ESP6500siv2_ALL already
+
+	    push @{$gannot_list->{extract_list}}   , $info_tag ;
+	    push @{$gannot_list->{type_list}}      , 'text' ;
+	    push @{$gannot_list->{coladd_list}}    , "anv_$col_tag" ;
+	    push @{$gannot_list->{operation_list}} , 'list' ;
+
+#            push @$list_extract , $info_tag ;
+#            push @$list_type , 'text' ;
+#            push @$list_column , "anv_$col_tag" ;
+#            push @$list_operation , 'list' ;
         }
     }
 
-    my $cmd_gannotate_from_annovar = "gemini annotate -f $file_vcfgz_annovar -a extract " ;
-    $cmd_gannotate_from_annovar .= " -e " . join("," , @$list_extract) ;
-    $cmd_gannotate_from_annovar .= " -t " . join("," , @$list_type) ;
-    $cmd_gannotate_from_annovar .= " -c " . join("," , @$list_column) ;
-    $cmd_gannotate_from_annovar .= " -o " . join("," , @$list_operation) ;
-    $cmd_gannotate_from_annovar .= " $file_geminidb 2> $dir_log/stderr.geminiannotate_annovar.$jobid.log" ;
+#    my $cmd_gannot_annovar = "gemini annotate -f $file_vcfgz_annovar -a extract " ;
+#    $cmd_gannot_annovar .= " -e " . join("," , @$list_extract) ;
+#    $cmd_gannot_annovar .= " -t " . join("," , @$list_type) ;
+#    $cmd_gannot_annovar .= " -c " . join("," , map {"'" . $_ . "'"} @$list_column) ;
+#    $cmd_gannot_annovar .= " -o " . join("," , @$list_operation) ;
+#    $cmd_gannot_annovar .= " $file_geminidb 2> $dir_log/stderr.gannot_annovar.$jobid.log" ;
+#    $log->andRun($cmd_gannot_annovar) ;
 
-    $log->write ($cmd_gannotate_from_annovar) ;
-    `$cmd_gannotate_from_annovar` ;
-    $log->write("Extract info fields from annovar finish") ;
+    $log->write("Extract info fields from ANNOVAR finish") ;
 
 
     # Varapp Support (Gemini annotate with AF,BaseQRankSum,FS,MQRankSum,ReadPosRankSum,SOR columns)
@@ -376,29 +383,72 @@ if (exists $sample2file->{all} ) {
     $cmd_gemini_annotate .= " -t float,float,float,float,float,float " ;
     $cmd_gemini_annotate .= " -c AF,BaseQRankSum,FS,MQRankSum,ReadPosRankSum,SOR " ;
     $cmd_gemini_annotate .= " -o mean,mean,mean,mean,mean,mean " ;
-    $cmd_gemini_annotate .= "  $file_geminidb 2> $dir_log/stderr.geminiannotate_forvarapp.$jobid.log" ;
+    $cmd_gemini_annotate .= "  $file_geminidb 2> $dir_log/stderr.gannot_forvarapp.$jobid.log" ;
 
-    $log->andRun($cmd_gemini_annotate) ;
+#    $log->andRun($cmd_gemini_annotate) ;
+
+    my $varapp_required_list = [qw/AF BaseQRankSum FS MQRankSum ReadPosRankSum SOR/] ;
+    push @{$gannot_list->{extract_list}}   , @$varapp_required_list ;
+    push @{$gannot_list->{type_list}}      , map {'float'} @$varapp_required_list ;
+    push @{$gannot_list->{coladd_list}}    , @$varapp_required_list ;
+    push @{$gannot_list->{operation_list}} , map {'mean'} @$varapp_required_list ;
+
     $log->write("Extract info field from vcf for Varapp (AF,BaseQRankSum,FS,MQRankSum,ReadPosRankSum,SOR) finish") ;
+
 
 
     # Extract pathway info
     #=======================================
     $log->write("gemini pathway start") ;
-    my $cmd_running_pathways = "$dir_script/pathway_parse.pl -j $jobid -d $file_geminidb -v $file_vcfgz_cleanXY -l $dir_log -o $file_prefix\_pathway.vcf.gz " ;
+
+    my $file_vcfgz_pathway = "$file_prefix\_pathway.vcf.gz" ;
+
+    my $cmd_running_pathways = "$dir_script/pathway_parse.pl " ;
+    $cmd_running_pathways   .= " -j $jobid " ;
+    $cmd_running_pathways   .= " -d $file_geminidb " ;
+#    $cmd_running_pathways   .= " -v $file_vcfgz_cleanXY " ;
+    $cmd_running_pathways   .= " -v $file_vcfgz_annovar " ;
+    $cmd_running_pathways   .= " -l $dir_log " ;
+    $cmd_running_pathways   .= " -o $file_vcfgz_pathway " ;
     $log->andRun($cmd_running_pathways) ;
     $log->write("gemini pathway finish") ;
 
+    push @{$gannot_list->{extract_list}}   , 'pathway' ;
+    push @{$gannot_list->{type_list}}      , 'text' ;
+    push @{$gannot_list->{coladd_list}}    , 'pathway' ;
+    push @{$gannot_list->{operation_list}} , 'list' ;
 
     # Extract GO infomation
     #=======================================
     $log->write("GO parse start") ;
-    my $cmd_parse_GO = "$dir_script/GO_parse.pl -j $jobid -d $file_geminidb -v $file_vcfgz_cleanXY -l $dir_log -o $file_prefix\_go.vcf.gz " ;
+
+    my $file_vcfgz_GO = "$file_prefix\_go.vcf.gz " ;
+
+    my $cmd_parse_GO = "$dir_script/GO_parse.pl " ;
+    $cmd_parse_GO   .= " -j $jobid " ;
+    $cmd_parse_GO   .= " -d $file_geminidb " ;
+#    $cmd_parse_GO   .= " -v $file_vcfgz_cleanXY " ;
+    $cmd_parse_GO   .= " -v $file_vcfgz_pathway " ;
+    $cmd_parse_GO   .= " -l $dir_log " ;
+    $cmd_parse_GO   .= " -o $file_vcfgz_GO " ;
+
     $log->andRun($cmd_parse_GO) ;
     $log->write("GO parse finish") ;
 
     my $file_log_goparse = "$dir_log/log_goparse_$jobid.log"  ;
     $log->loadlog($file_log_goparse) ;
+   
+    my $GO_cols = [qw/GO_Biological_Process GO_Cellular_Component GO_Molecular_Function/] ;
+    push @{$gannot_list->{extract_list}}   ,  @$GO_cols ;
+    push @{$gannot_list->{type_list}}      , map {'text'} @$GO_cols ;
+    push @{$gannot_list->{coladd_list}}    , @$GO_cols  ;
+    push @{$gannot_list->{operation_list}} , map {'list'} @$GO_cols ;
+
+
+    store $gannot_list , $file_hashref_vannot_tmp ;
+
+    my $cmd_gannot = "$dir_script/gannot.pl -j $jobid -d $file_geminidb -g $file_hashref_vannot_tmp -v $file_vcfgz_GO " ;
+    $log->andRun($cmd_gannot) ;
 }
                
 close $CONFIG ;
