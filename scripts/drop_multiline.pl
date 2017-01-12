@@ -64,8 +64,10 @@ while (my $var = $vcf_parser->next_var) {
 	    print $prevar->{line} . "\n" if ($flag_new) ;
 
 	} else {
-	    print $LOG "DROP\t$prevar->{line}\n\n" ;
-	    $count->{format_num_invalid} ++ ;
+	    if ($flag_new) {
+		print $LOG "DROP\t$prevar->{line}\n\n"  ;
+		$count->{format_num_invalid} ++ ;
+	    }
 	}
 
 	$flag_new = 1 ;
@@ -95,6 +97,10 @@ sub validate_format_num {
 
     my $alt_num = $var->get_alt_allele_num ;
     my $gt_combine_num = $var->get_gt_combination_num ;
+
+    if ($var->{CHROM} eq 'Y' || $var->{CHROM} eq 'chrY' || $var->{CHROM} eq 'MT' || $var->{CHROM} eq 'chrM') {
+	$gt_combine_num = $var->get_gt_combination_num(1) ;
+    }
 
     foreach my $sample (@{$var->{samples}}) {
 	my $format_value_pair_of_sample = $var->{sample_val}->{$sample} ;
