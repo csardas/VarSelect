@@ -18,24 +18,24 @@ sub new {
     # Attributes: 
     #	count_varnum_first
 
-    my $all_linenum = 0 ;
+    my $all_varnum = 0 ;
     my $flag_count_varnum_first = $self->{count_varnum_first} || 0 ;
 
     my $SRC ;
     if ($self->{file} =~ /\.bz2$/) { 
         open ($SRC, "bzcat $self->{file}|") or confess "Error: Couldn't open file $self->{file} or can't use bzcat to decompress $self->{file} .\n" ;
 
-	$all_linenum = `bzcat $self->{file} | wc -l ` if ($flag_count_varnum_first) ;
+	$all_varnum = `bzgrep -c -v '^#' $self->{file} ` if ($flag_count_varnum_first) ;
 
     } elsif($self->{file} =~ /\.gz$/) {
 	open ($SRC, "zcat $self->{file}|") or confess "Error: Couldn't open file $self->{file} or can't use zcat to decompress $self->{file} .\n" ;
 
-	$all_linenum = `zcat $self->{file} | wc -l` if ($flag_count_varnum_first) ;
+	$all_varnum = `zgrep -c -v '^#' $self->{file} ` if ($flag_count_varnum_first) ;
 
     } elsif(defined $self->{file}) {
         open ($SRC, "$self->{file}") or confess "Error: Couldn't open file $self->{file}\n" ;
 
-	$all_linenum = `wc -l $self->{file}` if ($flag_count_varnum_first) ;
+	$all_varnum = `grep -c -v '^#' $self->{file}` if ($flag_count_varnum_first) ;
 
     } elsif (defined $self->{fh}) {
         $SRC = $self->{fh} ;
@@ -49,7 +49,7 @@ sub new {
         croak "option 'file' or 'fh' or 'string' should be defined\n" ;
     }
 
-    chomp $all_linenum if($flag_count_varnum_first) ;
+    chomp $all_varnum if($flag_count_varnum_first) ;
 
     my $header = {} ;
     my $headerline = '' ;
@@ -110,7 +110,7 @@ sub new {
     $self->{colline} = $colline ;
     $self->{file_handle} = $SRC ;
     $self->{samples} = $samples ;
-    $self->{all_varnum} = $all_linenum - $headerline if ($flag_count_varnum_first) ;
+    $self->{all_varnum} = $all_varnum if ($flag_count_varnum_first) ;
 
     bless ($self,$class) ;
     return $self ;
@@ -226,11 +226,6 @@ sub DESTROY {
 #
 #
 #    #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  W133    W148-3  W158-3  W164    W173    W180-3  W182    W190-3  W191-3  W194    W204-3  W221    W239    W250
-#    9       133592151       .       C       T       6.02    .       AC1=2;AC=2;AF1=1;AN=2;DP4=0,0,2,0;DP=2;FQ=-33;MQ=20;SF=26;VDB=7.520000e-02      GT:GQ:PL        .       .       .
-#    9       133592441       .       C       T       16.23   .       AC1=2;AC=7;AF1=1;AN=10;DP4=7,0,15,2;DP=24;FQ=-42;MQ=20;PV4=1,0.33,1,0.33;RPB=8.745357e-01;SF=2,13,19,29,30;VDB=2.067816
-#    9       133592507       .       A       G       6.98    .       AC1=1;AC=1;AF1=0.5007;AN=2;DP4=1,1,0,3;DP=5;FQ=-4.32;MQ=20;PV4=0.4,0.29,1,0.14;RPB=-5.314005e-01;SF=14;VDB=2.986822e-02
-#    9       133592559       .       A       G       21.00   .       AC1=1;AC=1;AF1=0.5;AN=2;DP4=1,2,1,3;DP=7;FQ=10.3;MQ=20;PV4=1,1,1,1;RPB=-6.486824e-01;SF=30;VDB=5.226635e-02     GT:GQ:P
-#    9       133592635       .       A       G       6.02    .       AC1=2;AC=2;AF1=1;AN=2;DP4=0,0,0,2;DP=2;FQ=-33;MQ=20;SF=4;VDB=7.840000e-02       GT:GQ:PL        .       .       .
 
 package Vcf ;
 
@@ -242,6 +237,25 @@ sub get_line {
 sub get_INFO {
     my $self = shift ;
     return $self->{INFO} ;
+}
+
+sub get_alt_allele_num {
+    my $self = shift ;
+    my @alleles = split(/\,/,$self->{ALT}) ;
+
+    return scalar @alleles ;
+}
+
+sub get_gt_combination_num {
+    my $self = shift ;
+    my $ploidy = shift ;
+    my $alt_allelenum = $self->get_alt_allele_num ;
+    my $all_allelenum = $alt_allelenum + 1 ;
+
+    my $output = (($all_allelenum * $all_allelenum - $all_allelenum) / 2 ) + $all_allelenum ;
+    $output = 2 if ($ploidy == 1) ;
+
+    return $output ;
 }
 
 sub get_b4info {
