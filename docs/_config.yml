@@ -29,6 +29,7 @@ github_username:  csardas
 markdown: kramdown
 theme: minima
 gems:
+  - jekyll-paginate
   - jekyll-feed
 exclude:
   - Gemfile
