@@ -28,10 +28,10 @@ gemini db_info example1_varselect.db |grep '^variants'
 In family mode, there are five specific columns come with your job id: is_AR_20170105162548 , is_CH_20170105162548, is_DR_20170105162548, is_TH_20170105162548 and  is_XL_20170105162548 which represent that the variant is presented in following genetic inheritance models: autosomal recessive, compound heterozygotes, de novo recessive, two hit and X-linked respectively.
 
 You can run following command to filer out which variant fit the compound heterozygotes  model.
-	gemini query --header
-	       –q ‘select chrom,start,ref,alt,gene,gts from variants
-	           where is_CH_20170105162548 = 1’
-	       example1_varselect.db
+>	gemini query --header
+>	       –q ‘select chrom,start,ref,alt,gene,gts from variants
+>	           where is_CH_20170105162548 = 1’
+>	       example1_varselect.db
 
 Column “in_analysis_20170105162548” is a union set of five models. Variants that fit any of the five genetic models can be filtered out by following command:
 	gemini query --header
