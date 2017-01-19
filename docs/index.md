@@ -19,7 +19,7 @@ All required files are stored in directory varselect/examples/example1/ :
 * example1.ped : A tab separated file that describe the relationship between each sample, the sex of samples and the affected status of samples.  In this example, we assign NA12878 as an affected sample to simulate family case with disease unaffected parents and a disease affected child. 
 
 
-There are six mandatory columns in ped file:  FamilyID, SampleID, PaternalSampleID, MaternalSampleID, Sex and Phenotype (affected status). For detail of ped format, please check the page ﻿http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped﻿ 
+There are six mandatory columns in ped file:  FamilyID, SampleID, PaternalSampleID, MaternalSampleID, Sex and Phenotype (affected status). For detail of ped format, please check the page (http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped) 
 User can start to run example of VarSelect by following command:
 
 ```
@@ -41,20 +41,20 @@ In family mode, there are five specific columns come with your job id: is_AR_201
 You can run following command to filer out which variant fit the compound heterozygotes  model.
 
 ```
-	gemini query --header
-	       –q ‘select chrom,start,ref,alt,gene,gts from variants
-	           where is_CH_20170105162548 = 1’
-	       example1_varselect.db
+gemini query --header
+       –q ‘select chrom,start,ref,alt,gene,gts from variants
+           where is_CH_20170105162548 = 1’
+       example1_varselect.db
 ```
 
 Column “in_analysis_20170105162548” is a union set of five models. Variants that fit any of the five genetic models can be filtered out by following command:
 
 ```
-	gemini query --header
-	       –q ‘select chrom,start,ref,alt,is_AR_20170105162548 ,
-	           is_CH_20170105162548, is_DR_20170105162548, is_TH_20170105162548,
-	       is_XL_20170105162548 from variants where in_analysis_20170105162548 = 1'
-	        example1_varselect.db   
+gemini query --header
+       –q ‘select chrom,start,ref,alt,is_AR_20170105162548 ,
+           is_CH_20170105162548, is_DR_20170105162548, is_TH_20170105162548,
+           is_XL_20170105162548 from variants where in_analysis_20170105162548 = 1'
+       example1_varselect.db   
 ```
 
 ## Examples 2
