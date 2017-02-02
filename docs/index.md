@@ -180,12 +180,11 @@ Results of new secondary analysis will be stored in a new directory. The filtere
 # Description of VarSelect scripts
 VarSelect is composed of many individual scripts. Bellows are the description of each VarSelect script. 
 * varselect.pl is the main script of VarSelect. It provides three commands included in VarSelect: annotate (initial annotation), analysis (primary and re-analysis) and compare (secondary analysis).
+  * Command “annotate” triggers the script vs_annotate.pl to annotate VCF files from scratch and the script vs_analysis.pl to analyze variants through workflow of choice. There are three required options: -v sample-vcf file list, -p PED file, -m workflow mode.
+  * Command “analysis” triggers the script vs_analysis.pl. There are three required options: -d gemini db file, -p PED file, -m workflow mode. 
+  * Command “compare” triggers the script vs_compare.pl to compare results between two primary analysis. There are three required options: “-a” and “-b” to specify the path of the analysis A and B. “-c” specify the method of comparison (1. union, 2. intersection, 3. A only, and 4. B only)
 
-** Command “annotate” triggers the script vs_annotate.pl to annotate VCF files from scratch and the script vs_analysis.pl to analyze variants through workflow of choice. There are three required options: -v sample-vcf file list, -p PED file, -m workflow mode.
 
-** Command “analysis” triggers the script vs_analysis.pl. There are three required options: -d gemini db file, -p PED file, -m workflow mode. 
-
-** Command “compare” triggers the script vs_compare.pl to compare results between two primary analysis. There are three required options: “-a” and “-b” to specify the path of the analysis A and B. “-c” specify the method of comparison (1. union, 2. intersection, 3. A only, and 4. B only)
 # Examples
 
 ## Examples 1 samples from a family 
