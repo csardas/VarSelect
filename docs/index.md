@@ -390,6 +390,92 @@ varselect.pl compare
     -c 4
 ```
 
-## Examples 4
+## Examples 4 – same sample with results from multiple variants callers
+For various reasons, union and/or intersection of variant calls from different callers could be of interests to some researchers. This example demonstrates the integrative results of two popular variant callers: GATK-HaplotypeCaller and freebayes.
 
-# Publication & Contact
+ll files are stored in directory examples/example4/:
+
+* NA12878-gatk-chr22.vcf.gz
+* NA12891-gatk-chr22.vcf.gz
+* NA12892-gatk-chr22.vcf.gz
+* NA12892-freebayes-chr22.vcf.gz
+* NA12878-freebayes-chr22.vcf.gz
+* NA12891-freebayes-chr22.vcf.gz
+* example4.txt: A comma separated file that describes the links between samples and corresponding VCF files. For multi-caller function, an extra column is required to describing the corresponding variant caller.
+
+```
+    NA12878,NA12878-gatk-chr22.vcf.gz,gatk-haplotype,
+    NA12891,NA12891-gatk-chr22.vcf.gz,gatk-haplotype
+    NA12892,NA12892-gatk-chr22.vcf.gz,gatk-haplotype
+    NA12878,NA12878-freebayes-chr22.vcf.g,freebayes z
+    NA12891,NA12891-freebayes-chr22.vcf.gz,freebayes
+    NA12892,NA12892-freebayes-chr22.vcf.gz,freebayes
+```
+
+* example4.ped: A tab separated file that describes the relationship between each sample, the gender and the disease status.
+
+The ‘-k’ option triggers the multi-caller function, followed by ‘-u’ option for preparing the union of all variants from the two variant callers. 
+
+```
+varselect.pl annotate 
+    -v example4.txt 
+    -p example4.ped 
+    -m family 
+    -k -u 
+```
+
+A new job id (ex:20170111162057) is tagged on a new directory “VarSelectAnalysisResult_20170111162057”. Please note that the variants with inconsistent calls by different callers will be removed for the downstream analysis.
+
+The full list of the removed variants could be found in the file “multicaller_union_inconsistant_20170111162057.txt”.
+
+The following command lists the variants in this analysis.
+
+```
+gemini query --header -q 'select chrom, start, ref, alt, gts 
+    from variants where in_analysis_20170111162057 = 1' 
+    example4_varselect.db
+```
+
+To analyze on the intersection of variants identified by both variant callers, replace the option ‘-u’ to ‘-i’ in the original command as following.
+
+```
+    varselect.pl analysis 
+        -d example4_varselect.db 
+        -p example4.ped 
+        -m family 
+        -k -i 
+```
+
+Please note that this two options ‘-u’ and ‘-i’ are mutually exclusive. Inconsistent calls by different callers are removed for the downstream analysis and listed in file “multicaller_intersect_inconsistant_20170111190712.txt” in the same directory of analysis output.
+
+## Known issue
+* To make VCF files be merged smoothly, decomposed multiple alt-allele variants with same position or wrong number of format value are excluded from analysis. 
+
+
+# Family analysis
+The family analysis workflow includes three steps: 1) analyzing the core family members including father, mother and sick child either male or female, the parents could be both healthy or either one is sick; 2) excluding the variants appeared in the other healthy members in the pedigree; 3) keeping the variants appeared in the other sick members in the pedigree. The inheritance models include: autosomal recessive (AR), compound heterozygosity (CH), de novo recessive (DNR), two-hits recessive (THR), and X chromosome-linked recessive (XLR). In humans, the pseudoautosomal region (PAR) on the X chromosome is diploid while the rest of the nucleotide sequence is haploid in male. Variants found on the X chromosome that fall in the CH, DNR, and THR models are reported on each of the category, and excluded from the XLR model. 
+
+## Autosomal recessive inheritance 
+In the AR model, both the pathogenic alleles came from each of the parents while the genotype of both of the parents are heterogeneous and includes exactly one pathogenic allele. When one of the parents is also sick, the sick parent shall carry homozygous variants, while the other parent shall be heterozygous and carries only one pathogenic variant.
+
+## Compound heterozygosity inheritance
+For discovering the pathogenic alleles of compound heterozygosity (CH), two candidate alleles shall locate in the same gene but on different positions yet chromosomes from each of the patients. The genotypes of the CH variants in both parents have to be heterozygous and includes exactly one pathogenic allele. If one of the parents is sick, the candidate gene shall be also compound heterozygous as the sick child. For the genes on the X chromosome, only the PAR region are scanned to the sick boys. Because of healthy father, only the PAR region are scanned for sick girls. 
+
+## De novo recessive mutation 
+In the de novo recessive (DNS) model, the variants of the sick child shall be homozygous and have to be different to that of the parents. For that on the X chromosome, the variants on the non-PAR region in the male and female patients shall be hemizygous and homozygous, respectively, while the variants on the PAR shall be homozygous for both the male and female patients. When one of the parents is sick, the homozygous variant in the sick child shall be different to that in the sick parent. 
+
+## Two-hit recessive mutation
+In the two-hit model, the sick child inherits one pathogenic allele from one of the parents while the other allele is somatically acquired. When healthy, both parents are homozygous wild-type or heterozygous carriers. For the variants on the X chromosome, the entire chromosome is scanned for sick girls, and is only the PAR region for sick boys. When one of the parents is sick, he/she shall carry two homozygous pathogenic alleles, while the other is either homozygous wild-type or not carrying the pathogenic allele. 
+
+## X-linked recessive inheritance
+For detecting X-linked recessive (XLR) inheritance, the variants on the non-PAR region in the male and female patients are hemizygous and homozygous, respectively. The variants on the PAR shall be homozygous for both the male and female patients. Typically, the sick boy shall inherit the pathogenic allele on the non-PAR region from his healthy or sick mother who carries heterozygous or homozygous variants, respectively. When the father is healthy, the girl received healthy hemizygous sequences on the non-PAR region from her father. Her disease is likely not related to the variants on non-PAR region, and the non-PAR region is therefore skipped unless the father is also sick. Depending on which parent is sick, either one or two pathogenic alleles shall be seen on the non-PAR region of the father or mother, respectively, while are always two pathogenic alleles on the PAR region. 
+
+# Paired case/control analysis
+In the case/control workflow, the variants of the matched samples are classified as either ‘loss of heterozygosity (LOH)’ or ‘de novo mutations’. All the different variants in the vcf files of both the cases and control, regardless single nucleotide, multi-nucleotide replacement, or small INDEL, are compared for LOH otherwise de novo mutations. VarSelect supports the comparison between one or more than one cases versus exactly one control sample. Comparison of using other sample as a control can be performed by setting up new secondary analysis. 
+
+## Loss of heterozygosity (LOH) events
+Variants that are heterozygous in the vcf file of control sample lose it heterozygosity while are homozygous for one of the two heterozygous alleles is so called LOH. When multiple cases are analyzed, each case is individually compared against the same control sample and annotated on the “is_LOH” tag. 
+
+## De novo mutation
+De novo mutation can occur on the alleles of heterozygosity and homozygosity, as long as the alternative nucleotide in the case isn’t present in the control sample. When multiple cases are analyzed, each case is individually compared against the same control sample and annotated on the “is_de novo” tag.
+
