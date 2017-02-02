@@ -152,7 +152,40 @@ family1     daughter    father      mother      2       2
 #family1    aunt        0           0         2       2
 ```
 
+An initial full primary generates a VarSelect database, which is required for recording the results of the subsequent re-analysis. The -d option specifies the location of where the database file is kept. 
 
+```
+varselect.pl analysis -d /path/to/gemini/db \
+                      -p /path/to/modified/ped/file \
+                      -m workflow mode \
+                      -k -u
+```
+After re-analysis, a new analysis directory will be created with new jobid. The results and logs will be stored in new directory. Filtered variants will be assigned new tag in_analysis_new_jobbid in the VarSelect database.
+
+## Secondary analysis: compare results from any two primary analysis 
+
+Analysis in full or in part of the annotation, single or multiple variant callers, and analytic workflow is termed ‘primary analysis’, while the results from different primary analysis can be compared for specific purposes and is termed ‘secondary analysis’. Comparison between any two primary analyses is specified by the options “–a” and “–b” as follows.
+
+```
+varselect.pl compare  -a /dir/to/analysis/of/datasetA \
+                   -b /dir/to/analysis/of/datasetB \
+                   -c [1-4] 
+```
+
+The secondary analysis includes four comparisons including: 1) the union of analysis A and B. 2) intersection of analysis A and B. 3) variants presented in the analysis A but not in the analysis B. 4) variants present in the analysis B but not in the analysis A. 
+
+Results of new secondary analysis will be stored in a new directory. The filtered variants will be assigned a tag in_analysis with the Job ID.
+
+
+# Description of VarSelect scripts
+VarSelect is composed of many individual scripts. Bellows are the description of each VarSelect script. 
+* varselect.pl is the main script of VarSelect. It provides three commands included in VarSelect: annotate (initial annotation), analysis (primary and re-analysis) and compare (secondary analysis).
+
+** Command “annotate” triggers the script vs_annotate.pl to annotate VCF files from scratch and the script vs_analysis.pl to analyze variants through workflow of choice. There are three required options: -v sample-vcf file list, -p PED file, -m workflow mode.
+
+** Command “analysis” triggers the script vs_analysis.pl. There are three required options: -d gemini db file, -p PED file, -m workflow mode. 
+
+** Command “compare” triggers the script vs_compare.pl to compare results between two primary analysis. There are three required options: “-a” and “-b” to specify the path of the analysis A and B. “-c” specify the method of comparison (1. union, 2. intersection, 3. A only, and 4. B only)
 # Examples
 
 ## Examples 1 samples from a family 
