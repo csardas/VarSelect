@@ -19,6 +19,7 @@ ANNOVAR  is a variant annotation tool with high efficiency to a variety of annot
 
 ## snpEff
 snpEff annotates and predicts the impact of genetic variants, and is available at http://snpeff.sourceforge.net/download.html. After downloading the software, the pre-built snpEff database for human genome of GRCh37 is needed. Please download it with following command:
+
 ```
 java –jar /path/to/your/snpEff.jar download –v GRCh37.75
 ```
@@ -33,22 +34,124 @@ The latest version of VarSelect package can be downloaded from https://github.co
 
 # Install VarSelect
 Please make sure that you have already downloaded all the required packages and resources for running VarSelect. When you are all set, please run the following command to decompress the VarSelect file.
+
 ```
 tar zxvf VarSelect-latest.tar.gz
 ```
 
 After extracting the package, run the VarSelect installation script
+
 ```
 /path/to/your/VarSelect/install_VarSelect.pl
 ```
 
 Add the VarSelect path to your system's $PATH settings
+
 ```
 export PATH=/path/to/your/VarSelect/dir:$PATH
 ```
 
 
 # Quick start
+
+VarSelect script is executable only on command line. Please use -h flag for the basic usage information. 
+
+```
+varselect.pl –h
+```
+
+VarSelect annotates and analyzes sequence variants, and compares the results from different primary analyses. To start using VarSelect, please use "annotate" to process your vcf file(s) of interests.
+
+```
+varselect.pl annotate -v /path/to/vcf_files_list \
+                      -p /path/to/ped/file \
+                      -m workflow_mode
+```
+
+The annotation function combines the variants from different samples and comprehensively annotates all reported variants. The -v option specifies the file recording the links between samples and corresponding variant files. The links is specified by a comma separator, one file per line as the following format:
+
+```
+sample1,/path/to/vcf/file1
+sample1,/path/to/vcf/file2
+sample2,/path/to/vcf/file3 
+```
+
+The gender and phenotype information is also required, and is specify by -p option followed by a PED file containing the pedigree information. An example of the PED file is available at http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped
+
+Once annotated, VarSelect creates a SQLite database file by using the GEMINI framework. The database can be queried and filtered by using the GEMINI commands to extract the annotation information.
+
+```
+gemini query —header -q 'select * from variants limit 10' \
+/path/to/varselect.db
+```
+
+Besides annotation, VarSelect also integrates copy number information to the variants. The option –c specifies the relationship between sample and copy number variation call from CNVkit. The relationship is specified in the file by comma separated pair, one file per line as following format:
+
+```
+sample1,/path/to/cns/file1
+sample2,/path/to/cns/file2
+```
+
+VarSelect will annotate with tags: cnv_samples, cnv_log2. Quantitative change by log base 2 between the paired samples is computed and annotated on the cnv_fc_samples and cnv_foldchange_log2 tags. 
+
+VarSelect also incorporate user's gene expression profile to annotate variants and supports the output files from DEXseq, sailfish or featureCounts. VarSelect annotates the variants on tags: xpr_samples, xpr_readcounts, xpr_fpkm, xpr_tpm.
+
+```
+sample1,readcount,/path/to/file/of/reads_counts
+sample1,exoncount,/path/to/file/of/dexseq_generated_exoncounts
+sample1,fpkm,/path/to/combined.fpkm
+sample1,tpm,/path/to/combined.gene.sf.tpm
+sample2,readcount,/path/to/file/of/reads_counts
+sample2,exoncount,/path/to/file/of/dexseq_generated_exoncounts
+sample2,fpkm,/path/to/combined.fpkm
+sample2,tpm,/path/to/combined.gene.sf.tpm
+```
+
+Quantitative change between the paired sample is pairwise computed and annotated on tags: xpr_fc_samples, xpr_foldchange_readcount, xpr_foldchange_fpkm , xpr_foldchange_tpm
+
+## Built-in analytic workflow for family and paired sample analysis
+
+VarSelect provides two basic analytic workflows: 1) family analysis or 2) paired case-control analysis, by specifying the option “-m family” or “-m paired”, respectively.
+
+For family analysis, VarSelect analyzes the genetic variants for five genetic models, including autosomal recessive (AR), compound heterozygosity (CH), de novo recessive (DNR), two-hit recessive (THR) and X-link recessive (XLR). The variants follow each of the model will be labelled on the tags: is_AR, is_CH, is_DR, is_TH and is_XL, respectively.
+
+For paired case-control analysis, VarSelect labels the changes of nucleotides between the paired samples with 'loss of heterozygous (LOH)' or 'de novo somatic mutations'. The changes are labelled on tags: is_LOH and is_de_novo. 
+The result of each analysis is recorded by a tag in_analysis_jobid, while the 'jobid' is the time stamp when the analysis is performed by VarSelect.
+
+## Start from vcf files by multiple callers
+Different variant callers often result in inconsistent variant calling reports while mostly are consistent with some inconsistent variants. VarSelect is engineered to deal with such situation by processing multiple VCF files by different variants callers in two ways: 1) unify all reported variants or 2) intersect variants reported by all callers. The option -k flag triggers this function, followed by option -u (union) or option -i (intersection), depending on the analytic purpose.
+
+```
+varselect.pl annotate -v /path/to/vcf/files/list \
+                      -p /path/to/ped/file \
+                      -m workflow_mode  \
+                      -k -i
+
+```
+
+The format of the list of VCF files is different from single-caller mode since now a sample would have multiple VCF files. User must specify sample, variant caller, and the associated VCF file. An extra comma separated field with the name of variant caller is added to the end of each line as follows:
+
+```
+sample1,/path/to/vcf/file1,caller1
+sample1,/path/to/vcf/file2,caller2
+sample2,/path/to/vcf/file3,caller1
+sample2,/path/to/vcf/file4,caller2
+```
+
+Please note that regardless filtering for the union or intersection, inconsistent calls among different callers are regarded ambiguity and are marked and removed from further analysis. The list of removed variants will be stored in the result directory.
+
+## Re-analysis and update the analysis database 
+Samples in a complex study design can be annotated together and analyzed according to various analytic purpose. The label of the phenotypic information (e.g. tumor and normal; affected and unaffected) of the samples can be rewritten and thereafter analyzed accordingly, according to the labels specified in the PED file. Samples begun with a hash character '#' in PED file are excluded from the downstream analysis. An example PED file is shown here, and the samples “uncle” and “aunt” are excluded from the downstream analysis
+
+```
+#family_id  sample_id   paternal_id maternal_id    sex     phenotype
+family1     father       0           0         1       1
+family1     mother      0           0         2       1
+family1     daughter    father      mother      2       2
+#family1    uncle       0           0         2       2
+#family1    aunt        0           0         2       2
+```
+
 
 # Examples
 
