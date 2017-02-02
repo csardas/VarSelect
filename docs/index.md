@@ -17,8 +17,36 @@ dbNSFP annotates the non-synonymous single nucleotide variations (nsSNVs). The d
 ## ANNOVAR
 ANNOVAR  is a variant annotation tool with high efficiency to a variety of annotation databases, and is available at http://annovar.openbioinformatics.org/en/latest/user-guide/download/. Please note that a license is required. Please follow the instruction at http://annovar.openbioinformatics.org/en/latest/user-guide/startup/ to install scripts into proper directories when all the required packages are downloaded. Databases will be automatically installed by VarSelect installation script.
 
+## snpEff
+snpEff annotates and predicts the impact of genetic variants, and is available at http://snpeff.sourceforge.net/download.html. After downloading the software, the pre-built snpEff database for human genome of GRCh37 is needed. Please download it with following command:
+```
+java –jar /path/to/your/snpEff.jar download –v GRCh37.75
+```
+## vcftools
+vcftools are a set of tools for manipulating genetic variants in the VCF-formatted files, and are available at https://vcftools.github.io/index.html. Please follow the instruction to install vcftools at https://vcftools.github.io/examples.html.
 
-# Install
+## bcftools, bgzip, tabix
+bcftools, bgzip and tabix are tools to compress, index and manipulate VCF files. bcftools are available at http://www.htslib.org/download/, and include the bgzip and the tabix tools in the release.
+
+# Download VarSelect
+The latest version of VarSelect package can be downloaded from https://github.com/VarSelect/VarSelect
+
+# Install VarSelect
+Please make sure that you have already downloaded all the required packages and resources for running VarSelect. When you are all set, please run the following command to decompress the VarSelect file.
+```
+tar zxvf VarSelect-latest.tar.gz
+```
+
+After extracting the package, run the VarSelect installation script
+```
+/path/to/your/VarSelect/install_VarSelect.pl
+```
+
+Add the VarSelect path to your system's $PATH settings
+```
+export PATH=/path/to/your/VarSelect/dir:$PATH
+```
+
 
 # Quick start
 
