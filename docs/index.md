@@ -214,40 +214,42 @@ VarSelect is composed of many individual scripts. Bellows are the description of
 
 
 # Examples
+The following examples present some common scenario to start with.
 
-## Examples 1 samples from a family 
 
-In this example, we use variants from chromosome 22 of family NA12878,NA12891,NA12892 as an example for family-based analysis.
+## Examples 1 - samples of a family study
 
-All required files are stored in directory varselect/examples/example1/ :
+In this example, the variants of the chromosome 22 of a family trio, including NA12878, NA12891, NA12892 are demonstrated as an example for family-based analysis.
 
-* NA12878_chr22.vcf.gz  : Variant calls from chromosome 22 of these genomes. 
+All required files are stored in directory "varselect/examples/example1/" :
+
+* NA12878_chr22.vcf.gz 
 * NA12891_chr22.vcf.gz 
 * NA12892_chr22.vcf.gz 
 * example1.txt : A comma separated file that describe the relationship between sample and corresponding VCF file.  
-* example1.ped : A tab separated file that describe the relationship between each sample, the sex of samples and the affected status of samples.  In this example, we assign NA12878 as an affected sample to simulate family case with disease unaffected parents and a disease affected child. 
+* example1.ped : A tab separated file that describes the pedigree information of this family, including the gender and the disease status. In this example, we assume NA12878 is a sick child while NA12891 and NA12892 are unaffected parents. 
 
+For detail of ped format, please check the page (http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped) 
 
-There are six mandatory columns in ped file:  FamilyID, SampleID, PaternalSampleID, MaternalSampleID, Sex and Phenotype (affected status). For detail of ped format, please check the page (http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped) 
-User can start to run example of VarSelect by following command:
+To start the analysis, please type in following command:
 
 ```
 varselect.pl annotate -v example1.txt -p example1.ped -m family
 ```
 
-VarSelect uses timestamp of job submit as  job id (ex: 20170105162548).  Directory VarSelectAnalysisResult_20170105162548/ will be created when VarSelect starts running. Log files and intermediate results will be stored in this directory.
+VarSelect records the timestamp as job id when analysis is submitted (ex: 20170105162548). Directory “VarSelectAnalysisResult_20170105162548/” is created when VarSelect begins. Log files and intermediate results are stored in this directory.
 
-After the process of VarSelect, file example1_varselect.db will be created at current directory. User can use gemini commands to query the database for further analysis. 
+When the primary analysis is finished, example1_varselect.db is generated. User can type in the gemini commands to query the database for further analysis. 
 
-Please check which column is in the variants table first.
 
 ```
 gemini db_info example1_varselect.db |grep '^variants'
 ```
+Through the family workflow, five specific columns come with your job id: is_AR_20170105162548 , is_CH_20170105162548, is_DR_20170105162548, is_TH_20170105162548 and is_XL_20170105162548 corresponding the following genetic models: autosomal recessive, compound heterozygosity, de novo recessive, two-hit recessive and X-linked recessive, respectively.
 
-In family mode, there are five specific columns come with your job id: is_AR_20170105162548 , is_CH_20170105162548, is_DR_20170105162548, is_TH_20170105162548 and  is_XL_20170105162548 which represent that the variant is presented in following genetic inheritance models: autosomal recessive, compound heterozygotes, de novo recessive, two hit and X-linked respectively.
 
-You can run following command to filer out which variant fit the compound heterozygotes  model.
+The following command extracts the variants following compound heterozygosity inheritance with the information of chromosome, position, ref allele, alt allele, gene and genotype of all sample 
+
 
 ```
 gemini query --header
@@ -256,7 +258,8 @@ gemini query --header
        example1_varselect.db
 ```
 
-Column “in_analysis_20170105162548” is a union set of five models. Variants that fit any of the five genetic models can be filtered out by following command:
+Column “in_analysis_20170105162548” records variants qualifying the workflow analysis, and, in this case, is a union of the five genetic models. Variants falling in any of the five genetic models can be filtered out by following command:
+
 
 ```
 gemini query --header
@@ -266,9 +269,126 @@ gemini query --header
        example1_varselect.db   
 ```
 
-## Examples 2
+## Examples 2 - paired case/control samples
+In this case, we use the variants of chromosome 22 of three samples, including blood , primary tumor ccRCC (clear cell Renal Cell Carcinoma), and a metastasis lung cancer available at https://trace.ncbi.nlm.nih.gov/Traces/sra/?study=SRP063388.
+All files are stored in subdirectory examples/example2/
 
-## Examples 3
+* blood-gatk-chr22.vcf.gz 
+* ccRCC-gatk-chr22.vcf.gz
+* meta-lung-gatk-chr22.vcf.gz
+* example2.txt: A comma separated file that describes the links between sample and corresponding VCF file.
+* example2.ped: A tab separated file that describes the relationship between each sample, the gender and the disease status. In this case, blood is assigned as an unaffected (control) sample, while ccRCC and meta-lung are assigned as affected samples.
+
+To start the analysis, please type in the following command. 
+
+```
+varselect.pl annotate -v example2.txt -p example2.ped -m paired
+```
+
+When the analysis is finished, a file “example2_varselect.db” is created at the same directory.
+To check which column is in the variations table first.
+
+```
+gemini db_info example2_varselect.db |grep '^variants'
+```
+
+There are several columns includes is_LOH (loss of heterozygosity ), LOH_samples, is_denovo and denovo_gt denovo_samples specific in paired mode. VarSelect compares the genotype difference between control (unaffected) and case (affected) samples, and assign LOH or de_novo tag.
+
+The following commands filters out the de_novo somatic variants.
+
+```
+gemini query --header 
+             –q ‘select chrom, start, ref, alt, gts, denovo_samples_20170106175124 
+                 from variants where is_denovo_20170106175124=1 ’  
+             example2_varselect.db
+```
+
+## Examples 3 - Re-analysis and comparison (secondary analysis)
+Multiple primary analysis (re-analysis) can be performed for various study purposes. Comparison between multiple primary analysis provides the flexibility of hierarchical comparison, namely secondary analysis. User can repeat the analysis by changing the label recorded in the ped file. For example, in the case of ccRCC, you can filter the common de novo mutations presented in both ccRCC and the lung meta samples by performing “blood vs. ccRCC” and “blood vs. meta-lung’ analyses. The third sample inn the ped file marked with '#' will be excluded in this analysis.
+
+Firstly, replicate the ped file in the sample 2 as follows.
+
+```
+cp example2.ped example3_mark1.ped
+```
+
+Edit the example3_mark1.ped file and exclude meta-lung sample by ‘#” sign.
+
+```
+example3        blood   0       0       1       1
+example3        ccRCC   0       0       1       2
+#example3        meta-lung       0       0       1       2
+```
+
+Perform re-analysis by using this new ped file. User can use “varselect.pl analysis” to perform analysis and update the existing db file as follows.
+
+```
+varselect.pl analysis -d example2_varselect.db -p example3_mark1.ped -m paired
+```
+
+A new job id is generated at the time of beginning the re-analysis (ex: 20170109183415), and a new directory “VarSelectAnalysisResult_20170109183415” is created to store the log files and intermediate result files of this new analysis job.
+When the re-analysis is finished, new columns tagged with new job id are added into the variants table. The command is as follows.
+
+```
+gemini db_info example2_varselect.db | grep '20170109183415'
+```
+
+User can use following command to filter out the variants from de_novo mutation present in the ccRCC.
+
+```
+gemini query --header -q 'select chrom,start,ref,alt,gts from variants where is_de novo_20170109183415 = 1' example2_varselect.db
+```
+
+Replicate the example3_mark1.ped file and save as the example3_mark2.ped. Mark a ‘#’ sign on the sample meta-lung . 
+
+```
+example3        blood   0       0       1       1
+#example3       ccRCC   0       0       1       2
+example3        meta-lung       0       0       1       2
+
+```
+
+Perform re-analysis again with the newly edited ped file to identify the de novo variants present in the metastasis lung tumor.
+
+```
+varselect.pl analysis -d example2_varselect.db -p example3_mark2.ped -m paired
+```
+New directory “./VarSelectAnalysisResult_20170110174312” is created with corresponding tags updated in the database.
+You can extract the de novo mutation presented in the metastasis tumor by typing in the following command.
+
+```
+gemini query --header 
+    -q 'select chrom,start,ref,alt,gts from variants where 
+        is_denovo_20170110174312 = 1' 
+        example2_varselect.db
+```
+
+To identify the de novo mutations that present in both ccRCC and lung meta samples, we compare the results from the two (primary) analysis (jobs) by intersecting the results. Please note that only analyses stored in the same database (db) file can be compared (namely secondary analysis). In this example, the common de novo mutations are extracted by typing in the following command.
+
+```
+varselect.pl compare  
+    -a VarSelectAnalysisResult_20170109183415  
+    -b VarSelectAnalysisResult_20170110174312 
+    -c 2
+```
+
+A new job id is assigned (say, 20170111082651) and the database (db) will be updated with the results of the secondary analysis. The following command lists the results stored in the database (db). 
+
+```
+gemini query --header 
+    -q 'select chrom, start, ref, alt, gts from variants
+    where in_analysis_20170111082651 = 1'
+    example2_varselect.db
+```
+
+If you want to extract novel mutation only present in the metastasis tumor, change the option –c to ‘4’ (unique to the analysis in the ‘-b’ option). 
+
+```
+varselect.pl compare  
+    -a VarSelectAnalysisResult_20170109183415 
+    -b VarSelectAnalysisResult_20170110174312 
+    -c 4
+```
 
 ## Examples 4
 
