@@ -184,6 +184,11 @@ VarSelect is composed of many individual scripts. Bellows are the description of
   * Command “analysis” triggers the script vs_analysis.pl. There are three required options: -d gemini db file, -p PED file, -m workflow mode. 
   * Command “compare” triggers the script vs_compare.pl to compare results between two primary analysis. There are three required options: “-a” and “-b” to specify the path of the analysis A and B. “-c” specify the method of comparison (1. union, 2. intersection, 3. A only, and 4. B only)
 
+* vs_annotate.pl is called by varselect.pl for three functions. 
+  * Firstly, it prepares VCF file for annotation. VCF files from same sample will be joined together by vcf-concat of VCFtools. VCF files of different samples are then merged into a VCF file by vcf-merge in the VCFtools. The genotypes of sex chromosome on merged VCF file are curated by vcf-fix-ploidy in the VCFtools.
+  * Secondly, the script triggers VEP, snpEff and ANNOVAR for annotation
+  * Thirdly, the script triggers gemini framework to generate a sqlite db for downstream analysis.
+
 
 # Examples
 
