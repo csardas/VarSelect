@@ -179,6 +179,7 @@ Results of new secondary analysis will be stored in a new directory. The filtere
 
 # Description of VarSelect scripts
 VarSelect is composed of many individual scripts. Bellows are the description of each VarSelect script. 
+
 * varselect.pl is the main script of VarSelect. It provides three commands included in VarSelect: annotate (initial annotation), analysis (primary and re-analysis) and compare (secondary analysis).
   * Command “annotate” triggers the script vs_annotate.pl to annotate VCF files from scratch and the script vs_analysis.pl to analyze variants through workflow of choice. There are three required options: -v sample-vcf file list, -p PED file, -m workflow mode.
   * Command “analysis” triggers the script vs_analysis.pl. There are three required options: -d gemini db file, -p PED file, -m workflow mode. 
@@ -188,6 +189,28 @@ VarSelect is composed of many individual scripts. Bellows are the description of
   * Firstly, it prepares VCF file for annotation. VCF files from same sample will be joined together by vcf-concat of VCFtools. VCF files of different samples are then merged into a VCF file by vcf-merge in the VCFtools. The genotypes of sex chromosome on merged VCF file are curated by vcf-fix-ploidy in the VCFtools.
   * Secondly, the script triggers VEP, snpEff and ANNOVAR for annotation
   * Thirdly, the script triggers gemini framework to generate a sqlite db for downstream analysis.
+
+* vs_analysis.pl is triggered by varselect.pl to classify and label variants by the genotypes and affected status.
+  * If -k option supplied, multi-caller mode is turned on with union (option -u) or intersection (option -i) set of variants from different callers.
+  * If -c option supplied, the script calls up cnvkit_parse.pl to annotate copy number information.
+  * If -x option supplied, the script calls xprprofile_parse.pl to annotate gene expression.
+  * The script supports two basic analytical workflows by specifying -m option. For the paired case-control workflow, it triggers loh_detector.pl and denovo_detector.pl scripts to classify variants of loss of heterozygosity or of de novo changes. For family workflow, the script triggers a total of five scripts including Autosomal-recessive.py, Compound-het.py, Denovo-recessive.py, Two-hits.py and X-linked.py to classify the variants into the related genetic models. All variants selected by the workflow will be annotated on the tag is_analysis_JobID in the variants table of the database.
+
+* vs_compare.pl is triggered by varselect.pl to extract the intersection/union/subtraction of variants between two primary analyses.
+* run_vep.pl is triggered by vs_annotate.pl to annotate the VCF file through Ensembl VEP. The script also enables the dbNSFP plugin to annotate non-synonymous variants.
+* run_snpeff.pl is triggered by vs_annotate.pl to annotate the VCF file through snpEff. 
+* run_annovar.pl is triggered by vs_annotate.pl to annotate the VCF file through ANNOVAR.
+* GO_parse.pl is triggered by vs_annotate.pl to annotate variants on Gene Ontology (GO) terms. The GO terms are mapped by the corresponding ensembl id of transcripts where variants reside.
+* pathway_parse.pl is triggered by vs_annotate.pl to annotate variants on KEGG pathways. Correlated pathways will be extracted by the built-in function in the GEMINI framework “gemini pathways” and updated to the variants table.
+* cnvkit_parser.pl is triggered by vs_analysis.pl to annotate variants with the information of copy number variation. It extracts the log2 values where each variant reside and calculates fold-change between the paired samples.
+* xprprofile_parser.pl is triggered by vs_analysis.pl to annotate variants with gene express profiles. The script supports the annotation of four types of gene expression profile: gene-based read counts, exon-based read counts, gene-based tpm (Transcripts Per Kilobase Million), gene-based fpkm (Fragments Per Kilobase Million). Please specify the -x option followed by the file of gene expression profiles.
+* loh_detector.pl is triggered by vs_analysis.pl for the paired case/control workflow. The script checks variant genotypes between affected and unaffected samples and determine whether the variant is LOH. Variants classified as LOH are labeled on the tag “is_LOH”. Further description of the paired case/control workflow is described in the next section. 
+* denovo_detector.pl is triggered by vs_analysis.pl for the paired case/control workflow. The script compares the variants in the control and in the case sample for de novo somatic mutations, and labels on the tag “is_de_novo” Further description of the paired case/control workflow is described in the next section.
+* Autosomal-recessive.py is triggered by vs_analysis.pl for the family workflow. The script compares the variants between family samples to classify whether the variant is caused by autosomal recessive inheritance and label on the tag “is_AR”. Further description of the family workflow is described in the next section.
+* Compound-het.py is triggered by vs_analysis.pl for the family workflow. The script compares the variants between family samples to classify whether the variant is caused by compound heterozygosity inheritance and label on the tag “is_CH”. Further description of the family workflow is described in the next section.
+* Denovo-recessive.py is triggered by vs_analysis.pl for the family workflow. The script compares the variants between family samples to classify whether the variant is caused by De novo recessive mutation and label on the tag “is_DR”. Further description of the family workflow is described in the next section.
+* Two-hits.py is triggered by vs_analysis.pl for the family workflow. The script compares the variants between family samples to classify whether the variant is caused by two-hit recessive mutation and label on the tag “is_TH”. Further description of the family workflow is described in the next section.
+* X-linked.py is triggered by vs_analysis.pl for the family workflow. The script compares the variants between family samples to classify whether the variant is caused by X-linked recessive inheritance and label on the tag “is_XL”. Further description of the family workflow is described in the next section
 
 
 # Examples
